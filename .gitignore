@@ -6,6 +6,8 @@ data/
 # Data files
 *.txt
 *.json
+*.pt
+*.sh
 
 # Byte-compiled / optimized / DLL files
 __pycache__/
