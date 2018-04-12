@@ -94,8 +94,10 @@ class Attention(nn.Module):
             # (batch_size, qry_len, qry_dim) * (batch_size, ctx_dim, ctx_len) --> (batch_size, qry_len, ctx_len)
             attn = torch.bmm(qry, ctx)
         else:
-            qry = qry.view(qry_batch * qry_len, qry_dim)
-            qry = self.W(qry).view(qry_batch, qry_len, ctx_dim) 
+            # qry = qry.view(qry_batch * qry_len, qry_dim)
+            # qry = self.W(qry).view(qry_batch, qry_len, ctx_dim) 
+            # the linear module now supports multiple dimensions instead of only 2 dimensions
+            qry = self.W(qry) 
             ctx = ctx.transpose(1, 2)
             attn = torch.bmm(qry, ctx)
         return attn
@@ -132,7 +134,8 @@ class Attention(nn.Module):
         return attn, attn_ctx  
 
 if __name__ == '__main__':
-    attn_func = Attention('dot', 2, 2)
+    torch.manual_seed(2)
+    attn_func = Attention('mlp', 2, 2)
     ctx = Variable(torch.randn(2,5,2))
     ctx_lengths = torch.LongTensor([3,5])
     qry = Variable(torch.randn(2,3,2))

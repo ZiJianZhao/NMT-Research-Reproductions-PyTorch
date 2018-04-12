@@ -63,7 +63,7 @@ class DecoderRNNsearch(nn.Module):
         h0 is for the follow-up steps of decoding in test. 
 
         Returns: output, hidden
-            - **output** (batch, seq_len, hidden_dim): variable containing the encoded features of the input sequence
+            - **output** (batch, seq_len, hidden_dim+emb_dim+ctx_dim): variable containing the encoded features of the input sequence
             - **hidden** tensor or tuple containing last hidden states.
         """
         if h0 is not None:
@@ -85,13 +85,14 @@ class DecoderRNNsearch(nn.Module):
 
             # RNN operation
             input_t = torch.cat([emb_t, ctx_t], 1)
+            if self.rnn_type == 'GRU':
+                output = torch.cat([hidden, emb_t, ctx_t], 1)
+            else:
+                output = torch.cat([hidden[0], emb_t, ctx_t], 1)
             hidden = self.rnn(input_t, hidden)
 
             # outputs
-            if self.rnn_type == 'GRU':
-                outputs.append(hidden)
-            elif self.rnn_type == 'LSTM':
-                outputs.append(hidden[0])
+            outputs.append(output)
         outputs = torch.stack(outputs, dim=1)
         return outputs, hidden
 

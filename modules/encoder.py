@@ -1,5 +1,7 @@
 import torch
 import torch.nn as nn
+from torch.autograd import Variable
+
 
 from embedding import Embedding
 
@@ -66,5 +68,13 @@ class EncoderRNN(nn.Module):
                 nn.init.constant(param, 0)
 
 if __name__ == '__main__':
-    emb = Embedding(620, 620, 0)
-    model = EncoderRNN('LSTM', True, 1, 1000, emb) 
+    emb = Embedding(60, 4, 0)
+    model = EncoderRNN('LSTM', True, 1, 4, emb) 
+    src = Variable(torch.LongTensor([[1,2,3,4],[5,6,7,8],[9,10,11,12]]))
+    output, hidden = model(src)
+    print(output.size(), output)
+    if isinstance(hidden, tuple):
+        print(hidden[0].size(), hidden[0])
+        print(hidden[1].size(), hidden[1])
+    else:
+        print(hidden.size(), hidden)
