@@ -8,6 +8,7 @@ data/
 *.json
 *.pt
 *.sh
+*chkpts*/
 
 # Byte-compiled / optimized / DLL files
 __pycache__/
