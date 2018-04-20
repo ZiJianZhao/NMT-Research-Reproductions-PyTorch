@@ -23,6 +23,7 @@ class NMTModel(nn.Module):
     Note: the modules should be compatible.
     """
     def __init__(self, encoder, decoder, generator):
+        super(NMTModel, self).__init__()
         self.encoder = encoder
         self.decoder = decoder
         self.generator = generator

@@ -56,6 +56,7 @@ class Trainer(object):
             dec_data = Variable(dec_data, volatile=not is_train)
             if self.cuda:
                 enc_data, dec_data = enc_data.cuda(), dec_data.cuda()
+                enc_lengths = enc_lengths.cuda()
             dec_inputs = dec_data[:, :-1]
             target = dec_data[:, 1:].contiguous().view(-1)
             

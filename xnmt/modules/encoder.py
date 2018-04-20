@@ -23,6 +23,9 @@ class EncoderRNN(nn.Module):
 
         super(EncoderRNN, self).__init__()
 
+        self.rnn_type = rnn_type
+        if self.rnn_type not in ["GRU", "LSTM"]:
+            raise Exception("Unsupported RNN Type in decoder")
         self.embedding = embedding
         self.hidden_dim = hidden_dim
         self.rnn = getattr(nn, rnn_type)(embedding.emb_dim, hidden_dim, num_layers,

@@ -82,7 +82,7 @@ def drop_chkpt(epoch, model, optimizer, accu=None, ppl=None):
     print("Drop a checkpoint at {}".format(name))
 
 def load_chkpt(chkpt, model, optimizer=None):
-    print('LOad the checkpoint from {}'.format(chkpt))
+    print('Load the checkpoint from {}'.format(chkpt))
     chkpt = torch.load(chkpt,
             map_location = lambda storage, loc: storage)
     epoch = chkpt['epoch']
