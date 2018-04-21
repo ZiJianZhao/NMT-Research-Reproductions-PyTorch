@@ -1,4 +1,5 @@
 # -*- coding: utf-8 -*-
+
 import argparse
 import os, sys
 import codecs
@@ -6,8 +7,9 @@ from collections import Counter
 
 import torch
 
-sys.path.append('..')
-from xmnt.io import Constants
+sys.path.append('../')
+from xnmt.io import Constants
+from xnmt.utils import make_logger
 
 def preprocess_opts(parser):
     # Data options
@@ -81,7 +83,8 @@ def read_file(filename, max_sent_len):
 
 def build_vocab(filename, vocab_size):
     words = []
-    with codecs.open(filename, 'r', 'utf-8') as f:
+    #with codecs.open(filename, 'r', 'utf-8') as f:
+    with open(filename, 'r', encoding='utf-8') as f:
         for sent in f:
             ws = sent.strip().split()
             words.extend(ws)
@@ -95,38 +98,55 @@ def build_vocab(filename, vocab_size):
     }
     for word, freq in vocab_freq:
         word2idx[word] = len(word2idx)
-    print("Vocab size: {}".format(len(vocab_freq)))
+    print("Vocab size: {}".format(len(word2idx)))
 
     return word2idx
 
 
 def convert_file_to_ids(filename, word2idx):
-    with codecs.open(filename, 'r', 'utf-8') as f:
+
+    # ********************************************************************************
+    # --------------------------------------------------------------------------------
+    # Note: using codecs.open causes readlines output one more line than it should be. 
+    # It results that the number of lines in train.src is not compatible with that in train.tgt
+    # --------------------------------------------------------------------------------
+    # ********************************************************************************
+
+    #with codecs.open(filename, 'r', 'utf-8') as f:
+    with open(filename, 'r', encoding='utf-8') as f:
         lines = f.readlines()
         lists = [line.strip().split() for line in lines]
     return [[word2idx.get(w) if w in word2idx else Constants.UNK for w in sent] for sent in lists]
 
 def main():
 
+    logger = make_logger('log.preprocess')
+
     # parse arguments
     opt = parse_args()
+    dir_name, file_name = os.path.split(opt.save_data)
+    if not os.path.exists(dir_name):
+        os.mkdir(dir_name)
 
     # build and save vocab
     print("Building vocab...")
     src_word2idx = build_vocab(opt.train_src, opt.src_vocab_size)
     tgt_word2idx = build_vocab(opt.train_src, opt.src_vocab_size)
     vocab = {'src': src_word2idx, 'tgt': tgt_word2idx}
+    logger.info('Src vocab size: {}'.format(len(src_word2idx)))
+    logger.info('Tgt vocab size: {}'.format(len(tgt_word2idx)))
     torch.save(vocab, opt.save_data+'.vocab.pt')
 
     # convert train text to ids
     print("Converting train text to ids...")
     train_src = convert_file_to_ids(opt.train_src, src_word2idx)
     train_tgt = convert_file_to_ids(opt.train_tgt, tgt_word2idx)
+    print(len(train_src), len(train_tgt))
     assert len(train_src) == len(train_tgt)
     train = list(zip(train_src, train_tgt))
-    print("Train total lines: {}".format(len(train)))
+    logger.info("Train total lines: {}".format(len(train)))
     train = [t for t in train if len(t[0]) <= opt.src_seq_length and len(t[1]) <= opt.tgt_seq_length]
-    print("Train after filtering: {}".format(len(train)))
+    logger.info("Train after filtering (src: {}, tgt: {}): {}".format(opt.src_seq_length, opt.tgt_seq_length, len(train)))
     torch.save(train, opt.save_data+'.train.pt')
 
     # convert dev text to ids
@@ -135,7 +155,7 @@ def main():
     valid_tgt = convert_file_to_ids(opt.valid_tgt, tgt_word2idx)
     assert len(valid_src) == len(valid_tgt)
     valid = list(zip(valid_src, valid_tgt))
-    print("Valid total lines: {}".format(len(valid)))
+    logger.info("Valid total lines: {}".format(len(valid)))
     torch.save(valid, opt.save_data+'.valid.pt')
 
 if __name__ == '__main__':

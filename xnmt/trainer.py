@@ -24,7 +24,7 @@ class Trainer(object):
         self.optimizer = optimizer
         self.print_every = print_every
         self.start_epoch = 1
-        self.logger = make_logger('train.log')
+        self.logger = make_logger('log.train')
 
     def get_stats(self, loss, probs, target):
         """
