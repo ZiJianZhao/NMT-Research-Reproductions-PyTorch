@@ -131,7 +131,7 @@ def main():
     # build and save vocab
     print("Building vocab...")
     src_word2idx = build_vocab(opt.train_src, opt.src_vocab_size)
-    tgt_word2idx = build_vocab(opt.train_src, opt.src_vocab_size)
+    tgt_word2idx = build_vocab(opt.train_tgt, opt.src_vocab_size)
     vocab = {'src': src_word2idx, 'tgt': tgt_word2idx}
     logger.info('Src vocab size: {}'.format(len(src_word2idx)))
     logger.info('Tgt vocab size: {}'.format(len(tgt_word2idx)))
