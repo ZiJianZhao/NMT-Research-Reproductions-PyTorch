@@ -29,10 +29,19 @@ class NMTModel(nn.Module):
         self.generator = generator
 
     def forward(self, src, src_lengths, tgt):
-        # encoder
+        # ----- General Interface Considerations -----------------------
+        
+        # Encoder
+        # Encoder is just a RNN for now.
+        # And we always use nn.GRU and nn.LSTM for implementations
+        # enc_outputs: (batch_size, seq_len, hidden_dim * num_directions)
+        # enc_hiddens: (num_layers * num_directions, batch_size, hidden_dim)
         enc_outputs, enc_hiddens = self.encoder(src, src_lengths)
 
-        # decoder
+        # Decoder
+        # Decoder is always a uni-directional RNN.
+        # And we always use nn.GRUCell and nn.LSTMCell for implementation (Even for simple seq2seq)
+        # Note: The purpose is to define a general translator even in cost of speed
         dec_outputs, dec_hiddens = self.decoder(tgt, enc_outputs, ctx_lengths=src_lengths, enc_states=enc_hiddens)
 
         # generator

@@ -1,14 +1,18 @@
 # Temp directories 
 checkpoints/
 checkpoints/*
+chkpts/
 data/
 
-# Data files
+# Data and Log files
 *.txt
 *.json
 *.pt
 *.sh
 *chkpts*/
+*log*
+LOG
+ERR
 
 # Byte-compiled / optimized / DLL files
 __pycache__/

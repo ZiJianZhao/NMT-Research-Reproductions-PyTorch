@@ -66,7 +66,8 @@ def drop_chkpt(epoch, model, optimizer, accu=None, ppl=None):
     Drop a checkpoint, if have ppl and accu, display them in the name
     """
     i = datetime.datetime.now()
-    chkpt_dir = "Y_{}_M_{}_D_{}_chkpts".format(i.year, i.month, i.day)
+    #chkpt_dir = "Y_{}_M_{}_D_{}_chkpts".format(i.year, i.month, i.day)
+    chkpt_dir = 'chkpts'
     if not os.path.exists(chkpt_dir):
         os.mkdir(chkpt_dir)
     chkpt = {
