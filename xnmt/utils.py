@@ -73,7 +73,7 @@ def drop_chkpt(epoch, model, optimizer, accu=None, ppl=None):
     chkpt = {
         'epoch': epoch,
         'model': model.state_dict(),
-        'optimizer': optimizer.state_dict()
+        'optimizer': optimizer.optimizer.state_dict()
     }
     if ppl is None or accu is None:
         name = chkpt_dir + '/' + 'chkpt_{:02}.pt'.format(epoch)
@@ -89,7 +89,7 @@ def load_chkpt(chkpt, model, optimizer=None):
     epoch = chkpt['epoch']
     model.load_state_dict(chkpt['model'])
     if optimizer is not None:
-        optimizer.load_state_dict(chkpt['optimizer'])
+        optimizer.optimizer.load_state_dict(chkpt['optimizer'])
     if optimizer is not None:
         return epoch, model, optimizer
     else:

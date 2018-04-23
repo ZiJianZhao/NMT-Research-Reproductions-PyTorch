@@ -70,7 +70,8 @@ class Trainer(object):
             stats.update(batch_stat)
             
             if is_train:
-                self.optimizer.zero_grad()
+                #self.optimizer.zero_grad()
+                self.model.zero_grad()
                 loss.backward()
                 self.optimizer.step()
             
