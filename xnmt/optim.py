@@ -51,8 +51,10 @@ class Optim(object):
         elif self.method == 'adadelta':
             self.optimizer = optim.Adadelta(self.params, lr=self.lr)
         elif self.method == 'adam':
-            self.optimizer = optim.Adam(self.params, lr=self.lr, betas=self.betas, eps=1e-9)
-            # the eps value is not same as the default value in PyTorch
+            self.optimizer = optim.Adam(self.params, lr=self.lr, betas=self.betas, eps=1e-8)
+            # --------------------------------------------------------
+            # if the value of eps is too small, there may be numerical instability
+            # --------------------------------------------------------
         else:
             raise RuntimeError("Invalid optim method: {}".format(self.method))
 

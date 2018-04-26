@@ -50,8 +50,8 @@ class Attention(nn.Module):
         This initialization is especially for Bahdanau mlp attention
         """
         if self.attn_type == 'mlp':
-            for param in self.parameters():
-                if 1 in param.data.size():
+            for name, param in self.named_parameters():
+                if 1 in param.data.size() or 'bias' in name:
                     nn.init.constant(param, 0)
                 else:
                     nn.init.normal(param, 0, 0.001)
