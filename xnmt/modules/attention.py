@@ -56,8 +56,11 @@ class Attention(nn.Module):
                 else:
                     nn.init.normal(param, 0, 0.001)
         else:
-            for param in self.parameters():
-                nn.init.uniform(param, -0.1, 0.1)
+            for name, param in self.named_parameters():
+                if 'bias' in name:
+                    nn.init.constant(param, 0)
+                else:
+                    nn.init.uniform(param, -0.1, 0.1)
 
 
     def score(self, qry, ctx):

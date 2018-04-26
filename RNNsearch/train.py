@@ -15,6 +15,7 @@ sys.path.append('../')
 from xnmt.io.dataloader import DataLoader, PreNDataLoader
 from xnmt.io import Constants
 from xnmt.trainer import Trainer
+from xnmt.optim import Optim
 
 from model import make_model
 
@@ -77,8 +78,8 @@ def train():
     if opt.gpuid >= 0:
         model = model.cuda()
 
-    #optimizer = optim.Adadelta(model.parameters(), lr=1.0, rho=0.95, eps=1e-06, weight_decay=1)
-    optimizer = optim.Adam(model.parameters())
+    optimizer = Optim('Adadelta', 1.0, max_grad_norm=5)
+    optimizer.set_parameters(model.named_parameters())
 
     weight = torch.ones(len(tgt_word2idx))
     weight[Constants.PAD] = 0 
