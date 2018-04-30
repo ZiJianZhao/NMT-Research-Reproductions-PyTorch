@@ -107,3 +107,20 @@ def make_logger(filename):
     logger.addHandler(handler)
     return logger
 
+def tally_parameters(model, logger=None):
+    if logger is not None:
+        func = logger.info
+    else:
+        func = print
+    n_params = sum([p.nelement() for p in model.parameters()])
+    func('* number of parameters: {}'.format(n_params))
+    enc = 0
+    dec = 0
+    for name, param in model.named_parameters():
+        if 'encoder' in name:
+            enc += param.nelement()
+        elif 'decoder' or 'generator' in name:
+            dec += param.nelement()
+    func('encoder: {}'.format(enc))
+    func('decoder: {}'.format(dec))
+

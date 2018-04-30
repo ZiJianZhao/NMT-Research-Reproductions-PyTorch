@@ -23,7 +23,7 @@ class StackedLSTM(nn.Module):
         h_0, c_0 = hidden
         h_1, c_1 = [], []
         for i, layer in enumerate(self.layers):
-            h_1_i, c_1_i = layers(input, (h_0[i], c_0[i]))
+            h_1_i, c_1_i = layer(input, (h_0[i], c_0[i]))
             input = h_1_i
             if i + 1 != self.num_layers:
                 input = self.dropout(input)
