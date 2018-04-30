@@ -6,6 +6,7 @@ from torch.autograd import Variable
 
 from xnmt.modules.embedding import Embedding
 from xnmt.modules.attention import Attention
+from xnmt.modules.stacked_rnn import StackedGRU, StackedLSTM
 from xnmt.utils import aeq
 
 class DecoderS2S(nn.Module):
@@ -278,8 +279,10 @@ class DecoderStdRNN(nn.Module):
     Model overview: First RNN, then Attention
     Most probable paper:
         Effective Approaches to Attention-based Neural Machine Translation
-    
+
+    # ----------------------------------------------------------
     Note: the layers of decoder should be same as that of encoder.
+    # ----------------------------------------------------------
 
     Args:
         rnn_type (str): type of RNN cell, one of [RNN, GRU, LSTM]
@@ -298,6 +301,7 @@ class DecoderStdRNN(nn.Module):
         super(DecoderStdRNN, self).__init__()
         
         self.rnn_type = rnn_type
+        self.attn_type = attn_type
         self.bidirectional_encoder = bidirectional_encoder
         if bidirectional_encoder:
             self.encoder_directions = 2
@@ -307,9 +311,12 @@ class DecoderStdRNN(nn.Module):
             raise Exception("Unsupported RNN Type in decoder")
         self.hidden_dim = hidden_dim
         self.embedding = embedding
-        self.attn_func = Attention(attn_type, ctx_dim, hidden_dim)
         self.rnn = getattr(nn, rnn_type)(embedding.emb_dim, hidden_dim, num_layers,
                 batch_first=True, dropout=dropout)
+        self.attn_func = Attention(attn_type, ctx_dim, hidden_dim)
+        self.linear_out = nn.Linear(ctx_dim+hidden_dim, hidden_dim)
+        self.tanh = nn.Tanh()
+        self.dropout = nn.Dropout(dropout)
 
         self.init_params()
 
@@ -346,9 +353,172 @@ class DecoderStdRNN(nn.Module):
         attns, ctxs = self.attn_func(outputs, ctx, ctx_lengths)
 
         outputs = torch.cat([ctxs, outputs], 2)
-
+        outputs = self.linear_out(outputs)
+        if self.attn_type.lower() in ['general', 'dot']:
+            outputs = self.tanh(outputs)
+        outputs = self.dropout(outputs)
         outputs = outputs.contiguous().view(batch_size*seq_len, -1)
     
+        return outputs, hidden
+
+    def init_states(self, enc_states):
+        """
+        Initialize the hidden states decoder. 
+        Following the implementation choice in OpenNMT-py:
+            - decoder_hidden_dim = encoder_num_directions * encoder_hidden_dim
+
+        Args:
+            enc_states (tensor or tuple): (layers* directions, batch_size, enc_hidden_dim),
+
+        Returns:
+            dec_states (tensor or tuple): (layers, batch_size, dec_hidden_dim)
+        """
+
+        def fix_state(h):
+            if self.bidirectional_encoder:
+                h = torch.cat([h[0:h.size(0):2], h[1:h.size(0):2]], 2)
+            return h
+        
+        if isinstance(enc_states, tuple):
+            aeq(enc_states[0].size(2) * self.encoder_directions, self.hidden_dim)
+        else:
+            aeq(enc_states.size(2) * self.encoder_directions, self.hidden_dim)
+
+        if isinstance(enc_states, tuple):  # the encoder is a LSTM
+            if self.rnn_type == 'GRU':
+                return fix_state(enc_states[0])
+            elif self.rnn_type == 'LSTM':
+                return tuple([fix_state(h) for h in enc_states])
+        else:
+            if self.rnn_type == 'GRU':
+                return fix_state(enc_states)
+            else:
+                raise Exception("Unsupported structure: encoder-gru --> decoder-lstm")
+
+    def init_params(self):
+        """
+        This initializaiton is especially for gru according to the paper:
+            Neural Machine Translation by Jointly Learning to Align and Translate
+        """
+        for name, param in self.named_parameters():
+            if 'weight_ih' in name:
+                nn.init.normal(param, 0, 0.01)
+            elif 'weight_hh' in name:
+                for i in range(0, param.data.size(0), self.hidden_dim):
+                    nn.init.orthogonal(param.data[i:i+self.hidden_dim])
+            elif 'bias' in name:
+                nn.init.constant(param, 0)
+
+
+class DecoderInputFeedRNN(nn.Module):
+    r"""
+    Follow the implementation of 'InputFeedRNNDecoder' in OpenNMT-py 
+    Reference: https://github.com/OpenNMT/OpenNMT-py/blob/master/onmt/Models.py
+    Model overview: First RNN, then Attention
+    Most probable paper:
+        Effective Approaches to Attention-based Neural Machine Translation
+
+    # -----------------------------------------------------------------------
+    Note: the layers of decoder should be same as or less than that of encoder.
+    # -----------------------------------------------------------------------
+
+    Args:
+        rnn_type (str): type of RNN cell, one of [GRU, LSTM]
+        num_layers (int): number of recurrent layers
+        attn_type (str): type of attention, one of [mlp, dot, general]
+        hidden_dim (int): the dimensionality of the hidden state `h`
+        embedding (nn.Module): predefined embedding module
+        ctx_dim (int): the dimensionality of context vector
+        bidirectional_encoder (bool): whether the encoder is bidirectional
+        dropout (float, optional): dropout
+    """
+
+    def __init__(self, rnn_type, num_layers, attn_type, hidden_dim, embedding, 
+            ctx_dim, bidirectional_encoder=False, dropout=0.):
+
+        super(DecoderInputFeedRNN, self).__init__()
+        
+        self.rnn_type = rnn_type
+        self.attn_type = attn_type
+        self.hidden_dim = hidden_dim
+        self.bidirectional_encoder = bidirectional_encoder
+        if bidirectional_encoder:
+            self.encoder_directions = 2
+        else:
+            self.encoder_directions = 1
+        if self.rnn_type not in ["GRU", "LSTM"]:
+            raise Exception("Unsupported RNN Type in decoder")
+        
+        self.embedding = embedding
+
+        input_dim = embedding.emb_dim + hidden_dim
+        if self.rnn_type.lower() == 'gru':
+            self.rnn = StackedGRU(num_layers, input_dim, hidden_dim, dropout)
+        elif self.rnn_type.lower() == 'lstm':
+            self.rnn = StackedLSTM(num_layers, input_dim, hidden_dim, dropout)
+
+        self.attn_func = Attention(attn_type, ctx_dim, hidden_dim)
+
+        out_bias = self.attn_type.lower() == 'mlp'
+        self.linear_out = nn.Linear(ctx_dim+hidden_dim, hidden_dim, bias=out_bias)
+
+        self.tanh = nn.Tanh()
+        self.dropout = nn.Dropout(dropout)
+
+        self.init_params()
+
+    def forward(self, tgt, ctx, h0=None, ctx_lengths=None, enc_states=None):
+        """
+        Applies a multi-layer RNN to an target sequence.
+
+        Args:
+            tgt (batch_size, seq_len): tensor containing the features of the target sequence.
+            ctx (batch_size, ctx_len, ctx_dim): tensor containing context
+            h0: tensor or tuple containing the initial hidden state.
+            ctx_lengths (LongTensor): [batch_size] containing context lengths
+            enc_states (tensor or tuple): (2, batch_size, enc_hidden_dim), 2 * enc_hidden_dim == self.ctx_dim, 
+                used to compute the initial hidden states of decoder.
+
+        Note: enc_states is needed when training the model and in the first step of decoding in test,
+        h0 is for the follow-up steps of decoding in test. 
+
+        Returns: output, hidden
+            - **output** (batch * seq_len, hidden_dim+emb_dim+ctx_dim): variable containing the encoded features of the input sequence
+            - **hidden** tensor or tuple containing last hidden states.
+        """
+        if h0 is not None:
+            hidden = h0
+        else:
+            assert enc_states is not None, "Wrong, no way to initial the hidden states of decoder"
+            hidden = self.init_states(enc_states)
+
+        batch_size, seq_len = tgt.size()
+        emb = self.embedding(tgt) # batch_size * seq_len * emb_dim
+        
+        # Initialize input feed 
+        h_size = (batch_size, self.hidden_dim)
+        output = Variable(ctx.data.new(*h_size).zero_(), requires_grad=False)
+
+        outputs = []
+        for emb_t in emb.split(1, dim=1):
+            emb_t = emb_t.squeeze(1)
+            emb_t = torch.cat([emb_t, output], 1)
+            rnn_output, hidden = self.rnn(emb_t, hidden)
+
+            # attention calculation
+            attn_t, ctx_t = self.attn_func(rnn_output, ctx, ctx_lengths)  # attention
+
+            output = torch.cat([ctx_t, rnn_output], 1)
+            output = self.linear_out(output)
+            if self.attn_type.lower() in ['general', 'dot']:
+                output = self.tanh(output)
+            output = self.dropout(output)
+
+            # outputs
+            outputs.append(output)
+
+        outputs = torch.stack(outputs, dim=1)
+        outputs = outputs.contiguous().view(batch_size*seq_len, -1)
         return outputs, hidden
 
     def init_states(self, enc_states):
