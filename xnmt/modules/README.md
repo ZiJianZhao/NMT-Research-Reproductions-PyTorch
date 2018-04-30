@@ -1,6 +1,6 @@
 # modules
 
-Although the code are heavily borrowed from OpenNMT-py, there are some differences
+Although the code are heavily borrowed from OpenNMT-py, there are some differences in the choice of design.
 
 # Attention
 

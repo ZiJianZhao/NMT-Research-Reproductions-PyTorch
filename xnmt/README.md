@@ -1,6 +1,6 @@
 # XNMT
 
-This repository defines general interfaces and implements some modules for encoder-decoder framework
+This repository defines general interfaces and implements some modules for encoder-decoder framework.
 The code are heavily borrowed from OpenNMT-py.
 
 
