@@ -122,10 +122,11 @@ class Translator(object):
         # Encoder
         # enc_outputs: batch_size, seq_len, hidden_dim
         enc_outputs, enc_hiddens = self.model.encoder(enc_data, enc_lengths)
-        hiddens = self.model.decoder.init_states(enc_hiddens)  # (num_layers, batch_size, hidden_dim)
+        state = self.model.decoder.init_states(enc_outputs, enc_hiddens)
 
         # beam prepare
-        hiddens = self.repeat_hiddens(hiddens)
+        #hiddens = self.repeat_hiddens(hiddens)
+        state.repeat_beam_size_times(self.beam_size)
         ctx = enc_outputs.repeat(self.beam_size, 1, 1)
         ctx_lengths = enc_lengths.repeat(self.beam_size)
 
@@ -137,25 +138,27 @@ class Translator(object):
             dec_data = torch.stack([b.get_current_state() for b in beams])  # batch_size * beam_size
             dec_data = Variable(dec_data.view(-1, 1), volatile=True)  # (batch_size * beam_size, 1)
             # decoder operation
-            outputs, hiddens = self.model.decoder(dec_data, ctx, 
-                    h0=hiddens, ctx_lengths=ctx_lengths)
-            hiddens = self.unbottle(hiddens)
+            outputs, state = self.model.decoder(dec_data, ctx, 
+                    state, ctx_lengths=ctx_lengths)
+            # hiddens = self.unbottle(hiddens)
 
             # generator
             probs = self.model.generator(outputs) #(batch_size * beam_size, num_words)
             probs = probs.view(self.batch_size, self.beam_size, -1)
 
             active  = []
-            for b in range(self.batch_size):
-                if beams[b].done:
+            #for b in range(self.batch_size):
+            for j, b in enumerate(beams):
+                if b.done:
                     continue
-                is_done = beams[b].advance(probs.data[b])
+                is_done = b.advance(probs.data[j])
                 if not is_done:
                     active += [b]
-                hiddens = self.update_hiddens(hiddens, b, beams[b].get_current_origin())
+                state.beam_update(j, b.get_current_origin(), self.beam_size)
+                # hiddens = self.update_hiddens(hiddens, b, beams[b].get_current_origin())
             if not active:
                 break
-            hiddens = self.bottle(hiddens)
+            # hiddens = self.bottle(hiddens)
         
         # Get n_best results 
         all_hyps = []

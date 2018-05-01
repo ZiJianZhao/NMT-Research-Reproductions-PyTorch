@@ -38,11 +38,14 @@ class NMTModel(nn.Module):
         # enc_hiddens: (num_layers * num_directions, batch_size, hidden_dim)
         enc_outputs, enc_hiddens = self.encoder(src, src_lengths)
 
+
+        state = self.decoder.init_states(enc_outputs, enc_hiddens)
+
         # Decoder
         # Decoder is always a uni-directional RNN.
         # And we always use nn.GRUCell and nn.LSTMCell for implementation (Even for simple seq2seq)
         # Note: The purpose is to define a general translator even in cost of speed
-        dec_outputs, dec_hiddens = self.decoder(tgt, enc_outputs, ctx_lengths=src_lengths, enc_states=enc_hiddens)
+        dec_outputs, dec_hiddens = self.decoder(tgt, enc_outputs, state, ctx_lengths=src_lengths)
 
         # generator
         probs = self.generator(dec_outputs)
