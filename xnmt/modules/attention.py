@@ -31,6 +31,9 @@ class Attention(nn.Module):
     def __init__(self, attn_type, ctx_dim, qry_dim):
         super(Attention, self).__init__()
         self.attn_type = attn_type
+
+        assert (self.attn_type.lower() in ['dot', 'mlp', 'general']), (
+                "Please select a valid attention type.")
         
         if self.attn_type == 'general':
             self.W = nn.Linear(qry_dim, ctx_dim, bias=False)

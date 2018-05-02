@@ -15,11 +15,12 @@ class Embedding(nn.Module):
         padding_idx (int): pad the output with zeros whenever it encounters the index.
     """
 
-    def __init__(self, vocab_size, emb_dim, padding_idx):
+    def __init__(self, vocab_size, emb_dim, padding_idx, dropout=0.0):
 
         super(Embedding, self).__init__()
         self.emb_dim = emb_dim
         self.embedding = nn.Embedding(vocab_size, emb_dim, padding_idx=padding_idx, sparse=False)
+        self.dropout = nn.Dropout(dropout)
         self.init_params()
 
     def forward(self, input):
@@ -33,6 +34,7 @@ class Embedding(nn.Module):
             - **output** (batch, seq_len, emb_dim): variable containing embedding of the input sequence
         """
         emb = self.embedding(input)
+        emb = self.dropout(emb)
         return emb
 
     def init_params(self):
