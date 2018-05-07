@@ -83,7 +83,7 @@ class Attention(nn.Module):
         batch = qry_batch
 
         if self.attn_type == 'mlp':
-            wq = self.W(qry.view(-1, qry_dim))
+            wq = self.W(qry.contiguous().view(-1, qry_dim))
             wq = wq.view(batch, qry_len, 1, dim)
             wq = wq.expand(batch, qry_len, ctx_len, dim)
 
