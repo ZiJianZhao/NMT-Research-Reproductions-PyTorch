@@ -31,6 +31,7 @@ class Optim(object):
 
         self._step = 0
         self.last_ppl = None
+        self.start_decay = False
 
     def set_parameters(self, params):
         """

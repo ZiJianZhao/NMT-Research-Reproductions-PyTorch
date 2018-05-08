@@ -86,6 +86,8 @@ class Trainer(object):
             ))
         return stats.accuracy(), stats.ppl()
 
+    def epoch_step(self, ppl, epoch):
+        self.optimizer.update_learning_rate(ppl, epoch)
 
     def train(self, train_data, epochs, valid_data, resume_chkpt=None):
         """
@@ -103,5 +105,6 @@ class Trainer(object):
         for epoch in range(self.start_epoch, epochs+1):
             _, _ = self.train_on_epoch(train_data, epoch, True)
             acc, ppl = self.train_on_epoch(valid_data, epoch, False)
+            self.epoch_step(ppl, epoch)
             drop_chkpt(epoch, self.model, self.optimizer, acc, ppl)
 
