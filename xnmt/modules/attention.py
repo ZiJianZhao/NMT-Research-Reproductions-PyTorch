@@ -1,6 +1,7 @@
 # -*- coding: utf-8 -*-
 import os, sys, re, time
 import copy
+import math
 
 import torch
 import torch.nn as nn
@@ -21,6 +22,9 @@ class Attention(nn.Module):
         * dot: score(H_j, q) =  q^T H_j
         * general: score(H_j, q) = q^T W H_j
 
+    * Attention is all you need (scaled dot-product attention):
+        * sdot: score(H_j, q) = q^T H_j / sqrt(d), d is the dimension
+
     Args:
         attn_type (str): type of attention, options [dot, general, mlp]
         ctx_dim (int): dimensionality of context
@@ -32,7 +36,7 @@ class Attention(nn.Module):
         super(Attention, self).__init__()
         self.attn_type = attn_type
 
-        assert (self.attn_type.lower() in ['dot', 'mlp', 'general']), (
+        assert (self.attn_type.lower() in ['sdot' ,'dot', 'mlp', 'general']), (
                 "Please select a valid attention type.")
         
         if self.attn_type == 'general':
@@ -44,6 +48,7 @@ class Attention(nn.Module):
         else:  # dot attention requires both maxtrices have same dimensionality
             aeq(ctx_dim, qry_dim)
 
+        self.temper = math.sqrt(ctx_dim) 
         self.tanh = nn.Tanh()
         self.sm = nn.Softmax(dim=-1)
         self.init_weights()
@@ -99,6 +104,10 @@ class Attention(nn.Module):
             ctx = ctx.transpose(1, 2)
             # (batch_size, qry_len, qry_dim) * (batch_size, ctx_dim, ctx_len) --> (batch_size, qry_len, ctx_len)
             attn = torch.bmm(qry, ctx)
+        elif self.attn_type == 'sdot':
+            aeq(ctx_dim, qry_dim)
+            ctx = ctx.transpose(1, 2)
+            attn = torch.bmm(qry, ctx) / self.temper
         else:
             # qry = qry.view(qry_batch * qry_len, qry_dim)
             # qry = self.W(qry).view(qry_batch, qry_len, ctx_dim) 
