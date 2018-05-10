@@ -1,0 +1,19 @@
+../subword-nmt/learn_bpe.py -s 30000 < ../../../data/LDCtrain_NISTtest/train.cn.utf8 > train.cn.bpe.code
+echo "Learn cn bpe completed"
+../subword-nmt/apply_bpe.py -c train.cn.bpe.code < ../../../data/LDCtrain_NISTtest/train.cn.utf8 > train.bpe.cn
+echo "Apply cn bpe completed"
+../subword-nmt/apply_bpe.py -c train.cn.bpe.code < ../../../data/LDCtrain_NISTtest/nist02.cn > nist02.bpe.cn
+../subword-nmt/apply_bpe.py -c train.cn.bpe.code < ../../../data/LDCtrain_NISTtest/nist03.cn > nist03.bpe.cn
+../subword-nmt/apply_bpe.py -c train.cn.bpe.code < ../../../data/LDCtrain_NISTtest/nist04.cn > nist04.bpe.cn
+../subword-nmt/apply_bpe.py -c train.cn.bpe.code < ../../../data/LDCtrain_NISTtest/nist05.cn > nist05.bpe.cn
+../subword-nmt/apply_bpe.py -c train.cn.bpe.code < ../../../data/LDCtrain_NISTtest/nist06.cn > nist06.bpe.cn
+../subword-nmt/apply_bpe.py -c train.cn.bpe.code < ../../../data/LDCtrain_NISTtest/nist08.cn > nist08.bpe.cn
+echo "Apply nists bpe completed"
+
+../subword-nmt/learn_bpe.py -s 30000 < ../../../data/LDCtrain_NISTtest/train.en.utf8 > train.en.bpe.code
+echo "Learn en bpe completed"
+../subword-nmt/apply_bpe.py -c train.en.bpe.code < ../../../data/LDCtrain_NISTtest/train.en.utf8 > train.bpe.en
+echo "Apply en bpe completed"
+../subword-nmt/apply_bpe.py -c train.en.bpe.code < ../../../data/LDCtrain_NISTtest/nist02.en0 > nist02.bpe.en0
+echo "Apply nist02 bpe completed"
+
