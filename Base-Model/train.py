@@ -84,7 +84,7 @@ def train():
     print(model)
     tally_parameters(model)
 
-    optimizer = Optim('Adadelta', 1.0, max_grad_norm=5, lr_decay=0.5, start_decay_at=8)
+    optimizer = Optim('Adadelta', 1.0, max_grad_norm=5)
     optimizer.set_parameters(model.named_parameters())
 
     weight = torch.ones(len(tgt_word2idx))
