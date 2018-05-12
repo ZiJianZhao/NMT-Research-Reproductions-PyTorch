@@ -70,10 +70,13 @@ def drop_chkpt(epoch, model, optimizer, accu=None, ppl=None):
     chkpt_dir = 'chkpts'
     if not os.path.exists(chkpt_dir):
         os.mkdir(chkpt_dir)
+    
+    real_model = model.module if isinstance(model, nn.DataParallel) else model
+
     chkpt = {
         'epoch': epoch,
-        'model': model.state_dict(),
-        'optimizer': optimizer.optimizer.state_dict()
+        'model': real_model.state_dict(),
+        'optimizer': optimizer
     }
     if ppl is None or accu is None:
         name = chkpt_dir + '/' + 'chkpt_{:02}.pt'.format(epoch)
@@ -82,14 +85,30 @@ def drop_chkpt(epoch, model, optimizer, accu=None, ppl=None):
     torch.save(chkpt, name)
     print("Drop a checkpoint at {}".format(name))
 
-def load_chkpt(chkpt, model, optimizer=None):
+def load_chkpt(chkpt, model, optimizer=None, use_gpu=True):
+
     print('Load the checkpoint from {}'.format(chkpt))
+    print("Use gpu is: {}".format(use_gpu))
+
     chkpt = torch.load(chkpt,
             map_location = lambda storage, loc: storage)
     epoch = chkpt['epoch']
     model.load_state_dict(chkpt['model'])
+
     if optimizer is not None:
-        optimizer.optimizer.load_state_dict(chkpt['optimizer'])
+        
+        optimizer = chkpt['optimizer']
+        saved_optimizer_state_dict = optimizer.optimizer.state_dict()
+        optimizer.set_parameters(model.named_parameters())
+
+        optimizer.optimizer.load_state_dict(saved_optimizer_state_dict)
+
+        if use_gpu:
+            for state in optimizer.optimizer.state.values():
+                for k,v in state.items():
+                    if torch.is_tensor(v):
+                        state[k] = v.cuda()
+    
     if optimizer is not None:
         return epoch, model, optimizer
     else:

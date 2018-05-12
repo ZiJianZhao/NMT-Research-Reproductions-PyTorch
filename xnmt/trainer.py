@@ -99,7 +99,7 @@ class Trainer(object):
         """
         if resume_chkpt is not None:
             self.start_epoch, self.model, self.optimizer = \
-                    load_chkpt(resume_chkpt, self.model, self.optimizer)
+                    load_chkpt(resume_chkpt, self.model, self.optimizer, self.cuda)
             self.start_epoch += 1
 
         for epoch in range(self.start_epoch, epochs+1):
