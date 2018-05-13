@@ -5,12 +5,7 @@ import torch.nn as nn
 from torch.autograd import Variable
 
 sys.path.append('../')
-from xnmt.modules.embedding import Embedding, position_encoding_init
-from xnmt.modules.encoder import EncoderRNN
-from xnmt.modules.attention import Attention
-from xnmt.modules.decoder import  DecoderRNNsearch, DecoderS2S
-from xnmt.modules.nmt import NMTModel
-from xnmt.modules.layers import Maxout
+from xnmt.modules import Embedding, EncoderRNN, DecoderRNNsearch, NMTModel, Maxout
 from xnmt.io import Constants
 
 def make_model(src_vocab_size, tgt_vocab_size):

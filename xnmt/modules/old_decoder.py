@@ -7,6 +7,7 @@ from torch.autograd import Variable
 from xnmt.modules.embedding import Embedding
 from xnmt.modules.attention import Attention
 from xnmt.modules.stacked_rnn import StackedGRU, StackedLSTM
+from xnmt.modules.decoder import RNNDecoderState
 from xnmt.utils import aeq
 
 class DecoderS2S(nn.Module):
