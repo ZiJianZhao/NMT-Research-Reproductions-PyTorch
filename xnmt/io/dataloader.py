@@ -45,6 +45,9 @@ class DataLoader(object):
         if self.epoch_shuffle:
             random.shuffle(self.indices)
     
+    def __len__(self):
+        return self.batches
+
     def __iter__(self):
         return self
 
@@ -111,6 +114,9 @@ class PreNDataLoader(object):
         if self.epoch_shuffle:
             random.shuffle(self.indices)
     
+    def __len__(self):
+        return self.batches
+
     def __iter__(self):
         return self
 
