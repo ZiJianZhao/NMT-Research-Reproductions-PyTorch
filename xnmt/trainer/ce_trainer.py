@@ -41,19 +41,17 @@ class Trainer(object):
         num_correct = pred.eq(target).masked_select(non_padding).sum()
         return Statistics(loss[0], non_padding.sum(), num_correct)
 
-    def train_on_epoch(self, data_iter, epoch, is_train):
-        if is_train:
-            self.logger.info("Epoch {:02} begins training .......................".format(epoch))
-            self.model.train()
-        else:
-            self.logger.info("Epoch {:02} begins validation .......................".format(epoch))
-            self.model.eval()
+    def train_on_epoch(self, data_iter, epoch):
+        
+        self.logger.info("Epoch {:02} begins training .......................".format(epoch))
+        self.model.train()
         stats = Statistics()
+        
         for (i, (enc_data, enc_lengths, dec_data, _)) in enumerate(data_iter):
             
             # data initialization
-            enc_data = Variable(enc_data, volatile=not is_train)
-            dec_data = Variable(dec_data, volatile=not is_train)
+            enc_data = Variable(enc_data, volatile=False)
+            dec_data = Variable(dec_data, volatile=False)
             if self.cuda:
                 enc_data, dec_data = enc_data.cuda(), dec_data.cuda()
                 enc_lengths = enc_lengths.cuda()
@@ -69,17 +67,45 @@ class Trainer(object):
             batch_stat = self.get_stats(loss_data, probs.data, target.data)
             stats.update(batch_stat)
             
-            if is_train:
-                #self.optimizer.zero_grad()
-                self.model.zero_grad()
-                loss.backward()
-                self.optimizer.step()
+            self.model.zero_grad()
+            loss.backward()
+            self.optimizer.step()
             
-            if is_train and (i > 0) and (i % self.print_every == 0):
+            if (i > 0) and (i % self.print_every == 0):
                 self.logger.info("Epoch {:02}, {:05}/{:05}; accu: {:6.2f}; ppl: {:6.2f}; {:6.0f}s elapsed".format(
                      epoch, i, data_iter.batches, stats.accuracy(), stats.ppl(), stats.elapsed_time()
                     ))
 
+        self.logger.info("Epoch {:02}, accu: {:6.2f}; ppl: {:6.2f}; {:6.0f}s elapsed".format(
+                epoch, stats.accuracy(), stats.ppl(), stats.elapsed_time()
+            ))
+        return stats.accuracy(), stats.ppl()
+
+    def eval_on_epoch(self, data_iter, epoch):
+        
+        self.logger.info("Epoch {:02} begins validation .......................".format(epoch))
+        self.model.eval()
+        stats = Statistics()
+        
+        for (i, (enc_data, enc_lengths, dec_data, _)) in enumerate(data_iter):
+            
+            # data initialization
+            enc_data = Variable(enc_data, volatile=True)
+            dec_data = Variable(dec_data, volatile=True)
+            if self.cuda:
+                enc_data, dec_data = enc_data.cuda(), dec_data.cuda()
+                enc_lengths = enc_lengths.cuda()
+            dec_inputs = dec_data[:, :-1]
+            target = dec_data[:, 1:].contiguous().view(-1)
+            
+            # model calculation
+            probs = self.model(enc_data, enc_lengths, dec_inputs)
+            loss = self.criterion(probs, target)
+            
+            # statistics
+            loss_data = loss.data.clone()
+            batch_stat = self.get_stats(loss_data, probs.data, target.data)
+            stats.update(batch_stat)
 
         self.logger.info("Epoch {:02}, accu: {:6.2f}; ppl: {:6.2f}; {:6.0f}s elapsed".format(
                 epoch, stats.accuracy(), stats.ppl(), stats.elapsed_time()
@@ -103,8 +129,8 @@ class Trainer(object):
             self.start_epoch += 1
 
         for epoch in range(self.start_epoch, epochs+1):
-            _, _ = self.train_on_epoch(train_data, epoch, True)
-            acc, ppl = self.train_on_epoch(valid_data, epoch, False)
+            _, _ = self.train_on_epoch(train_data, epoch)
+            acc, ppl = self.eval_on_epoch(valid_data, epoch)
             self.epoch_step(ppl, epoch)
             drop_chkpt(epoch, self.model, self.optimizer, acc, ppl)
 
