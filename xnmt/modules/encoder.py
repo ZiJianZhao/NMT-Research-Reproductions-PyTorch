@@ -1,6 +1,5 @@
 import torch
 import torch.nn as nn
-from torch.autograd import Variable
 
 
 from xnmt.modules.embedding import Embedding
@@ -44,8 +43,8 @@ class EncoderRNN(nn.Module):
             h0 (tensor, optional): tensor containing the initial hidden state. Default to zero.
 
         Returns: output, hidden
-            - **output** (batch, seq_len, hidden_dim * num_directions): variable containing the encoded features of the input sequence
-            - **hidden** (num_layers * num_directions, batch, hidden_dim): variable containing the features in the hidden state h
+            - **output** (batch, seq_len, hidden_dim * num_directions): tensor containing the encoded features of the input sequence
+            - **hidden** (num_layers * num_directions, batch, hidden_dim): tensor containing the features in the hidden state h
         """
         emb = self.embedding(src)
         if lengths is not None:
@@ -63,10 +62,10 @@ class EncoderRNN(nn.Module):
         """
         for name, param in self.named_parameters():
             if 'weight_ih' in name:
-                nn.init.normal(param, 0, 0.01)
+                nn.init.normal_(param, 0, 0.01)
             elif 'weight_hh' in name:
                 for i in range(0, param.data.size(0), self.hidden_dim):
-                    nn.init.orthogonal(param.data[i:i+self.hidden_dim])
+                    nn.init.orthogonal_(param.data[i:i+self.hidden_dim])
             elif 'bias' in name:
-                nn.init.constant(param, 0)
+                nn.init.constant_(param, 0)
 

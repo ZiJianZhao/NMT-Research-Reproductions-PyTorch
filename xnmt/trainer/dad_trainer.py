@@ -6,7 +6,6 @@ import sympy
 
 import torch
 import torch.nn as nn
-from torch.autograd import Variable
 
 from xnmt.utils import drop_chkpt, load_chkpt, make_logger, Statistics
 from xnmt.io import Constants
@@ -44,8 +43,8 @@ class DADTrainer(object):
         """
         pred = probs.max(1)[1] # predicted targets
         non_padding = target.ne(Constants.PAD)
-        num_correct = pred.eq(target).masked_select(non_padding).sum()
-        return Statistics(loss[0], non_padding.sum(), num_correct)
+        num_correct = pred.eq(target).masked_select(non_padding).sum().item()
+        return Statistics(loss.item(), non_padding.sum().item(), num_correct)
 
     # sample rate calculation: 
     def get_sample_func(self, epochs, iterations, rate=0.5):
@@ -77,8 +76,6 @@ class DADTrainer(object):
         for (i, (enc_data, enc_lengths, dec_data, _)) in enumerate(data_iter):
             
             # data initialization
-            enc_data = Variable(enc_data, volatile=False)
-            dec_data = Variable(dec_data, volatile=False)
             if self.cuda:
                 enc_data, dec_data = enc_data.cuda(), dec_data.cuda()
                 enc_lengths = enc_lengths.cuda()
@@ -109,7 +106,7 @@ class DADTrainer(object):
                 loss += self.criterion(dec_probs, target[:, di])
 
                 topv, topi = dec_probs.data.topk(1)
-                sample_inputs = Variable(topi)
+                sample_inputs = topi
             
             # statistics
             probs = torch.stack(probs, 1).view(flatten_target.size(0), -1)
@@ -140,8 +137,6 @@ class DADTrainer(object):
         for (i, (enc_data, enc_lengths, dec_data, _)) in enumerate(data_iter):
             
             # data initialization
-            enc_data = Variable(enc_data, volatile=True)
-            dec_data = Variable(dec_data, volatile=True)
             if self.cuda:
                 enc_data, dec_data = enc_data.cuda(), dec_data.cuda()
                 enc_lengths = enc_lengths.cuda()

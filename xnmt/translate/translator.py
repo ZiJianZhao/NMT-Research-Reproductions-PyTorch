@@ -5,7 +5,6 @@ import codecs
 
 import torch
 import torch.nn as nn
-from torch.autograd import Variable
 
 from xnmt.io.dataloader import DataLoader
 from xnmt.io import Constants
@@ -114,7 +113,6 @@ class Translator(object):
             enc_data (FloatTensor): (batch_size * enc_len) 
             enc_lengths (LongTensor): (batch_size)
         """
-        enc_data = Variable(enc_data, volatile=True)
         if self.cuda:
             enc_data = enc_data.cuda()
             enc_lengths = enc_lengths.cuda()
@@ -135,8 +133,7 @@ class Translator(object):
         for i in range(self.max_length):
             
             # decoder input data
-            dec_data = torch.stack([b.get_current_state() for b in beams])  # batch_size * beam_size
-            dec_data = Variable(dec_data.view(-1, 1), volatile=True)  # (batch_size * beam_size, 1)
+            dec_data = torch.stack([b.get_current_state() for b in beams]).view(-1, 1)  # batch_size * beam_size
             # decoder operation
             outputs, state = self.model.decoder(dec_data, ctx, 
                     state, ctx_lengths=ctx_lengths)

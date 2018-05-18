@@ -2,7 +2,6 @@
 import numpy as np
 import torch
 import torch.nn as nn
-from torch.autograd import Variable
 
 
 class Embedding(nn.Module):
@@ -31,7 +30,7 @@ class Embedding(nn.Module):
             input (batch, seq_len): tensor containing the features of the input sequence.
 
         Returns: output, hidden
-            - **output** (batch, seq_len, emb_dim): variable containing embedding of the input sequence
+            - **output** (batch, seq_len, emb_dim): tensor containing embedding of the input sequence
         """
         emb = self.embedding(input)
         emb = self.dropout(emb)
@@ -40,9 +39,9 @@ class Embedding(nn.Module):
     def init_params(self):
         for name, param in self.named_parameters():
             if name.endswith('weight'):
-                nn.init.normal(param, 0, 0.01)
+                nn.init.normal_(param, 0, 0.01)
             elif name.endswith('bias'):
-                nn.init.constant(param, 0)
+                nn.init.constant_(param, 0)
             else:
                 raise Exception('Wrong parameters')
 

@@ -2,7 +2,6 @@ import os, sys
 
 import torch
 import torch.nn as nn
-from torch.autograd import Variable
 
 sys.path.append('../')
 from xnmt.modules import Embedding, EncoderRNN, DecoderRNNsearch, NMTModel, Maxout

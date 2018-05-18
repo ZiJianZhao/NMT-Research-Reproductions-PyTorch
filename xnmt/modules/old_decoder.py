@@ -2,7 +2,6 @@
 
 import torch
 import torch.nn as nn
-from torch.autograd import Variable
 
 from xnmt.modules.embedding import Embedding
 from xnmt.modules.attention import Attention
@@ -53,7 +52,7 @@ class DecoderS2S(nn.Module):
         Note: You must first call init_states
 
         Returns: output, hidden
-            - **output** (batch * seq_len, hidden_dim+emb_dim+ctx_dim): variable containing the encoded features of the input sequence
+            - **output** (batch * seq_len, hidden_dim+emb_dim+ctx_dim): tensor containing the encoded features of the input sequence
             - **hidden** tensor or tuple containing last hidden states.
         """
         if self.rnn_type.lower() == 'gru':
@@ -75,7 +74,7 @@ class DecoderS2S(nn.Module):
         Initialize the hidden states decoder. We only uses the backward last state instead of the concated bidirectional state.
 
         Args:
-            context (Variable): batch_size * enc_len * (enc_directions * enc_size)
+            context (tensor): batch_size * enc_len * (enc_directions * enc_size)
             enc_states (tensor or tuple): (layers* directions, batch_size, enc_hidden_dim),
 
         Returns:
@@ -123,14 +122,14 @@ class DecoderS2S(nn.Module):
         """
         for name, param in self.named_parameters():
             if 'weight_ih' in name:
-                nn.init.normal(param, 0, 0.01)
+                nn.init.normal_(param, 0, 0.01)
             elif 'weight_hh' in name:
                 for i in range(0, param.data.size(0), self.hidden_dim):
-                    nn.init.orthogonal(param.data[i:i+self.hidden_dim])
+                    nn.init.orthogonal_(param.data[i:i+self.hidden_dim])
             elif 'bias' in name:
-                nn.init.constant(param, 0)
+                nn.init.constant_(param, 0)
             elif 'enc2dec' in name and 'weight' in name:
-                nn.init.normal(param, 0, 0.01)
+                nn.init.normal_(param, 0, 0.01)
 
 class DecoderRNNsearch(nn.Module):
     r"""
@@ -182,7 +181,7 @@ class DecoderRNNsearch(nn.Module):
             ctx_lengths (LongTensor): [batch_size] containing context lengths
 
         Returns: output, hidden
-            - **output** (batch * seq_len, hidden_dim+emb_dim+ctx_dim): variable containing the encoded features of the input sequence
+            - **output** (batch * seq_len, hidden_dim+emb_dim+ctx_dim): tensor containing the encoded features of the input sequence
             - **hidden** tensor or tuple containing last hidden states.
         """
         if self.rnn_type.lower() == 'gru':
@@ -229,7 +228,7 @@ class DecoderRNNsearch(nn.Module):
         Initialize the hidden states decoder. The paper only uses the backward last state instead of the concated bidirectional state
 
         Args:
-            context (Variable): batch_size * enc_len * (enc_directions * enc_size)
+            context (tensor): batch_size * enc_len * (enc_directions * enc_size)
             enc_states (tensor or tuple): (2, batch_size, enc_hidden_dim), 2 * enc_hidden_dim == self.ctx_dim
 
         Returns:
@@ -271,12 +270,12 @@ class DecoderRNNsearch(nn.Module):
         """
         for name, param in self.named_parameters():
             if 'weight_ih' in name:
-                nn.init.normal(param, 0, 0.01)
+                nn.init.normal_(param, 0, 0.01)
             elif 'weight_hh' in name:
                 for i in range(0, param.data.size(0), self.hidden_dim):
-                    nn.init.orthogonal(param.data[i:i+self.hidden_dim])
+                    nn.init.orthogonal_(param.data[i:i+self.hidden_dim])
             elif 'bias' in name:
-                nn.init.constant(param, 0)
+                nn.init.constant_(param, 0)
             elif 'enc2dec' in name and 'weight' in name:
-                nn.init.normal(param, 0, 0.01)
+                nn.init.normal_(param, 0, 0.01)
 

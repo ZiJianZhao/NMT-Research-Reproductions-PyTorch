@@ -5,7 +5,6 @@ import math
 
 import torch
 import torch.nn as nn
-from torch.autograd import Variable
 from torch import optim
 import torch.nn.functional as F
 
@@ -60,15 +59,15 @@ class Attention(nn.Module):
         if self.attn_type == 'mlp':
             for name, param in self.named_parameters():
                 if 1 in param.data.size() or 'bias' in name:
-                    nn.init.constant(param, 0)
+                    nn.init.constant_(param, 0)
                 else:
-                    nn.init.normal(param, 0, 0.001)
+                    nn.init.normal_(param, 0, 0.001)
         else:
             for name, param in self.named_parameters():
                 if 'bias' in name:
-                    nn.init.constant(param, 0)
+                    nn.init.constant_(param, 0)
                 else:
-                    nn.init.uniform(param, -0.1, 0.1)
+                    nn.init.uniform_(param, -0.1, 0.1)
 
 
     def score(self, qry, ctx):

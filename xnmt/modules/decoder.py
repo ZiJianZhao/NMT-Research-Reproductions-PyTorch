@@ -2,7 +2,6 @@
 
 import torch
 import torch.nn as nn
-from torch.autograd import Variable
 
 from xnmt.modules.embedding import Embedding
 from xnmt.modules.attention import Attention
@@ -99,7 +98,7 @@ class RNNDecoderBase(nn.Module):
             - decoder_hidden_dim = encoder_num_directions * encoder_hidden_dim
 
         Args:
-            context (Variable): batch_size * enc_len * (enc_directions * enc_size)
+            context (tensor): batch_size * enc_len * (enc_directions * enc_size)
             enc_states (tensor or tuple): (layers* directions, batch_size, enc_hidden_dim),
 
         Returns:
@@ -139,12 +138,12 @@ class RNNDecoderBase(nn.Module):
         """
         for name, param in self.named_parameters():
             if 'weight_ih' in name:
-                nn.init.normal(param, 0, 0.01)
+                nn.init.normal_(param, 0, 0.01)
             elif 'weight_hh' in name:
                 for i in range(0, param.data.size(0), self.hidden_dim):
-                    nn.init.orthogonal(param.data[i:i+self.hidden_dim])
+                    nn.init.orthogonal_(param.data[i:i+self.hidden_dim])
             elif 'bias' in name:
-                nn.init.constant(param, 0)
+                nn.init.constant_(param, 0)
 
 
 class StdRNNDecoder(RNNDecoderBase):
@@ -268,7 +267,7 @@ class DecoderState(object):
 
     def detach(self):
         """
-        Detaches all Variables from the graph that created it, make it a leaf
+        Detaches all tensors from the graph that created it, make it a leaf
         """
         for h in self._all:
             if h is not None:
@@ -281,19 +280,19 @@ class DecoderState(object):
                 continue
             a, br, d =  e.size()
             sentState = e.view(a, beam_size, br // beam_size, d)[:, :, idx]
-            sentState.data.copy_(
-                    sentState.data.index_select(1, position)
+            sentState.copy_(
+                    sentState.index_select(1, position)
             )
 
 class RNNDecoderState(DecoderState):
     def __init__(self, context, hidden_size, rnn_state):
         """
         Args:
-            context (Variable): batch_size * enc_len * rnn_size
+            context (tensor): batch_size * enc_len * rnn_size
             hidden_size (int): hidden size
-            rnn_state (Variable): layers * batch_size * rnn_size
+            rnn_state (tensor): layers * batch_size * rnn_size
             This should be transformed from enc_states in the decoder initilization.
-            input_feed (Variable):  1 * batch_size * rnn_size, output from last layer of the decoder.
+            input_feed (tensor):  1 * batch_size * rnn_size, output from last layer of the decoder.
         """
         if not isinstance(rnn_state, tuple):
             self.hidden = (rnn_state,)
@@ -302,7 +301,7 @@ class RNNDecoderState(DecoderState):
 
         batch_size = context.size(0)
         h_size = (batch_size, hidden_size)
-        self.input_feed = Variable(context.data.new(*h_size).zero_(), requires_grad=False).unsqueeze(0)
+        self.input_feed = context.new(*h_size).zero_().unsqueeze(0)
 
     @property
     def _all(self):
@@ -317,7 +316,7 @@ class RNNDecoderState(DecoderState):
 
     def repeat_beam_size_times(self, beam_size):
         """ Repeat beam_size times along batch dimensions. """
-        vars = [Variable(e.data.repeat(1, beam_size, 1), volatile=True)
+        vars = [e.repeat(1, beam_size, 1)
                 for e in self._all if e is not None]
         self.hidden = tuple(vars[:-1])
         self.input_feed = vars[-1]
