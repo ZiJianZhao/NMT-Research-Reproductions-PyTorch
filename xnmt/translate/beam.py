@@ -67,7 +67,7 @@ class Beam(object):
         self.next_ys.append(best_scores_id - prev_k * num_words)
 
         # End condition is when top-of-beam is EOS.
-        if self.next_ys[-1][0] == Constants.EOS:
+        if self.next_ys[-1][0].item() == Constants.EOS:
             self.done = True
             self.all_scores.append(self.scores)
 
@@ -110,7 +110,7 @@ class Beam(object):
         """
         hyp = []
         for j in range(len(self.prev_ks) - 1, -1, -1):
-            hyp.append(self.next_ys[j+1][k])
-            k = self.prev_ks[j][k]
+            hyp.append(self.next_ys[j+1][k].item())
+            k = self.prev_ks[j][k].item()
 
         return hyp[::-1]

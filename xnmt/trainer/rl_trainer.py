@@ -28,6 +28,10 @@ class RLCriterion(object):
         self.reward_type = reward_type
         if reward_type == 'bleu':
             self.get_reward = self.get_bleu
+        elif reward_type == 'ce':
+            self.get_reward = self.get_ce_reward
+        elif reward_type == 'acc':
+            self.get_reward = self.get_acc
         else:
             raise Exception('Unsupported reward type')
         # just a single scalar to keep the average of the history rewards 
@@ -61,6 +65,62 @@ class RLCriterion(object):
             rewards.append(score)
         rewards = torch.tensor(rewards, device=sample.device, requires_grad=False)
         rewards = rewards.view(-1, 1).repeat(1, sample_len) 
+        return rewards
+
+    def get_ce_reward(self, target, sample):
+        """Compute reward given the reference target and sampled sentence. 
+
+        ======================================================
+        Note: This is not compatible with the REINFORCE theory.
+        ======================================================
+
+        Performs just like cross entropy which gives word-level reward.
+
+        Args:
+            target (tensor): digits for now, since there is no difference in computing BLEU score using nltk.
+                * batch_size * target_len
+            sample (tensor): just like above, but is the sampled sentence.
+                * batch_size * sample_len
+        Returns:
+            rewards (tensor): tensor containing reward for each sampled unit
+                * batch_size * sample_len
+        """
+        
+        batch_size, target_len = target.size()
+        batch_size, sample_len = sample.size()
+        if target_len >= sample_len:
+            target = target[:, :sample_len]
+        else:
+            tmp = torch.ones((batch_size, sample_len-target_len)).type_as(sample)
+            target = torch.cat([target, tmp], dim=1)
+        rewards = torch.eq(sample, target).type(torch.float).to(sample.device)
+        return rewards
+
+    def get_acc(self, target, sample):
+        """Compute reward given the reference target and sampled sentence. 
+
+        Performs just like cross entropy which gives word-level reward.
+
+        Args:
+            target (tensor): digits for now, since there is no difference in computing BLEU score using nltk.
+                * batch_size * target_len
+            sample (tensor): just like above, but is the sampled sentence.
+                * batch_size * sample_len
+        Returns:
+            rewards (tensor): tensor containing reward for each sampled unit
+                * batch_size * sample_len
+        """
+        
+        batch_size, target_len = target.size()
+        batch_size, sample_len = sample.size()
+        if target_len >= sample_len:
+            target = target[:, :sample_len]
+        else:
+            tmp = torch.ones((batch_size, sample_len-target_len)).type_as(sample)
+            target = torch.cat([target, tmp], dim=1)
+        rewards = torch.eq(sample, target).type(torch.float).to(sample.device)
+        rewards = rewards.sum(dim=1, keepdim=True) / rewards.size(1)
+        rewards = rewards.repeat(1, sample_len)
         return rewards
 
     def get_sample_unit(self, probs, sample):
@@ -99,18 +159,21 @@ class RLCriterion(object):
         batch_size = probs.size()[0]
         units = self.get_sample_unit(probs, sample)
         rewards = self.get_reward(target, sample)
-        if baseline is not None:
-            rewards = rewards - baseline
-        
         reward_avg = rewards.sum().item()  / rewards.numel()
+        if baseline is not None:
+            loss_b = (rewards - baseline).pow(2)
+            loss_sum_b = torch.sum(loss_b) / batch_size
+            rewards = rewards - baseline.detach()
+        
 
-        non_mask = 1 -  torch.eq(sample.data, Constants.PAD)
-        non_mask = non_mask.float()
+        #non_mask = 1 -  torch.eq(sample.data, Constants.PAD)
+        #non_mask = non_mask.float()
         
         #loss = -non_mask * (rewards - self.baseline) * loss_units
-        loss = - non_mask * rewards * units
+        loss = - rewards * units
         loss_sum = torch.sum(loss) / batch_size
-
+        if baseline is not None:
+            loss_sum += loss_sum_b 
         # update baseline
         # self.baseline = self.baseline * self.ratio + new_reward_avg * (1 - self.ratio)
         return loss_sum, reward_avg
@@ -182,8 +245,11 @@ class RLTrainer(object):
         # samples
         samples = []
         log_probs = []
+        baselines = []
         t = 0
-        while t < self.sample_length:
+        sample_length = target.size(1) + 1
+        #while t < self.sample_length:
+        while t < sample_length:
             t += 1
             
             # decoder step forward
@@ -197,13 +263,20 @@ class RLTrainer(object):
             y_t = prob_t.multinomial(1)
             y_t = y_t.detach()  
             samples.append(y_t)  # batch_size * 1
-
+            
+            # baseline calculation
+            b_t_h = state.hidden[0].detach()[-1,:,:].squeeze(0)
+            b_t = self.model.baseline(b_t_h)
+            baselines.append(b_t)
+            
             if torch.eq(y_t, Constants.EOS).type(torch.LongTensor).sum().item() == batch_size:
                 break
+
         log_probs = torch.stack(log_probs, dim=1)
         samples = torch.cat(samples, dim=1)
+        baseline = torch.cat(baselines, dim=1)
         # post processing
-        loss, reward = self.train_criterion(log_probs, target, samples)
+        loss, reward = self.train_criterion(log_probs, target, samples, baseline)
         return loss, reward
 
     def train_on_epoch(self, data_iter, epoch):

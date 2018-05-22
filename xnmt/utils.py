@@ -92,7 +92,7 @@ def load_chkpt(chkpt, model, optimizer=None, use_gpu=True):
     chkpt = torch.load(chkpt,
             map_location = lambda storage, loc: storage)
     epoch = chkpt['epoch']
-    model.load_state_dict(chkpt['model'])
+    model.load_state_dict(chkpt['model'], strict=False)
 
     if optimizer is not None:
         

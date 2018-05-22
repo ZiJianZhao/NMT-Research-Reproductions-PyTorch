@@ -21,11 +21,13 @@ class NMTModel(nn.Module):
 
     Note: the modules should be compatible.
     """
-    def __init__(self, encoder, decoder, generator):
+    def __init__(self, encoder, decoder, generator, **kw):
         super(NMTModel, self).__init__()
         self.encoder = encoder
         self.decoder = decoder
         self.generator = generator
+        for key in kw:
+            setattr(self, key, kw[key])
 
     def forward(self, src, src_lengths, tgt):
         # ----- General Interface Considerations -----------------------
