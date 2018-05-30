@@ -195,12 +195,12 @@ class RLCriterion(object):
 
         units = self.get_sample_unit(probs, sample)
 
-        rewards = self.get_reward(target, sample, length)
+        rewards = self.get_reward(target, sample, length).float()
+        #rewards = (self.get_acc(target, sample, length).float() + self.get_bleu(target, sample, length).float())
 
         mask = sequence_mask(length, sample.size(1))
 
-
-        reward_avg = rewards.sum().item()  / rewards.numel()
+        reward_avg = (rewards * mask.float()).sum().item()  / mask.float().sum().item()
         if baseline is not None:
             loss_b = (rewards - baseline).pow(2) * mask.float()
             loss_sum_b = torch.sum(loss_b) / batch_size
@@ -315,6 +315,7 @@ class RLTrainer(object):
             
             # baseline calculation
             b_t_h = state.hidden[0].detach()[-1,:,:].squeeze(0)
+            #b_t_h = state.hidden[0][-1,:,:].squeeze(0)
             b_t = self.model.baseline(b_t_h)
             baselines.append(b_t)
             
@@ -325,8 +326,8 @@ class RLTrainer(object):
         samples = torch.cat(samples, dim=1)
         baseline = torch.cat(baselines, dim=1)
         # post processing
-        #loss, reward = self.train_criterion(log_probs, target, samples, lengths, baseline)
-        loss, reward = self.train_criterion(log_probs, target, samples, lengths)
+        loss, reward = self.train_criterion(log_probs, target, samples, lengths, baseline)
+        #loss, reward = self.train_criterion(log_probs, target, samples, lengths)
         return loss, reward
 
     def train_on_epoch(self, data_iter, epoch):
@@ -387,6 +388,24 @@ class RLTrainer(object):
     def epoch_step(self, ppl, epoch):
         self.optimizer.update_learning_rate(ppl, epoch)
 
+    def load_chkpt(self, chkpt, model, optimizer=None, use_gpu=True):
+        
+        """Consideration: for rl trainer, since we have already change the optimized criterion,
+        we can use a totally new optimizer instead of the old optimizer
+        """
+        
+        print('RL Specific, Load the checkpoint from {}'.format(chkpt))
+        print("RL Specific, Use gpu is: {}".format(use_gpu))
+
+        chkpt = torch.load(chkpt,
+            map_location = lambda storage, loc: storage)
+        epoch = chkpt['epoch']
+        model.load_state_dict(chkpt['model'], strict=False)
+
+        optimizer.set_parameters(model.named_parameters())
+
+        return epoch, model, optimizer
+
     def train(self, train_data, epochs, valid_data, sample_size=10, 
             sample_length=20, resume_chkpt=None):
         """
@@ -399,8 +418,9 @@ class RLTrainer(object):
             resume_chkpt (str): resume checkpoint path
         """
         if resume_chkpt is not None:
+            
             self.start_epoch, self.model, self.optimizer = \
-                    load_chkpt(resume_chkpt, self.model, self.optimizer, self.cuda)
+                    self.load_chkpt(resume_chkpt, self.model, self.optimizer, self.cuda)
             self.start_epoch += 1
 
         self.sample_size = sample_size
