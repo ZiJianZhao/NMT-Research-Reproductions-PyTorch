@@ -123,7 +123,6 @@ class Translator(object):
         state = self.model.decoder.init_states(enc_outputs, enc_hiddens)
 
         # beam prepare
-        #hiddens = self.repeat_hiddens(hiddens)
         state.repeat_beam_size_times(self.beam_size)
         ctx = enc_outputs.repeat(self.beam_size, 1, 1)
         ctx_lengths = enc_lengths.repeat(self.beam_size)
@@ -133,29 +132,24 @@ class Translator(object):
         for i in range(self.max_length):
             
             # decoder input data
-            dec_data = torch.stack([b.get_current_state() for b in beams]).view(-1, 1)  # batch_size * beam_size
+            dec_data = torch.stack([b.get_current_state() for b in beams]).t().contiguous().view(-1, 1)  # batch_size * beam_size
             # decoder operation
             outputs, state = self.model.decoder(dec_data, ctx, 
                     state, ctx_lengths=ctx_lengths)
-            # hiddens = self.unbottle(hiddens)
 
             # generator
-            probs = self.model.generator(outputs) #(batch_size * beam_size, num_words)
-            probs = probs.view(self.batch_size, self.beam_size, -1)
-
+            probs = self.model.generator(outputs)  #(batch_size * beam_size, num_words)
+            probs = probs.view(self.beam_size, self.batch_size, -1)
             active  = []
-            #for b in range(self.batch_size):
             for j, b in enumerate(beams):
                 if b.done:
                     continue
-                is_done = b.advance(probs.data[j])
+                is_done = b.advance(probs.data[:, j])
                 if not is_done:
                     active += [b]
                 state.beam_update(j, b.get_current_origin(), self.beam_size)
-                # hiddens = self.update_hiddens(hiddens, b, beams[b].get_current_origin())
             if not active:
                 break
-            # hiddens = self.bottle(hiddens)
         
         # Get n_best results 
         all_hyps = []
@@ -166,6 +160,7 @@ class Translator(object):
             #hyps = [(scores[i], sents[i]) for i in range(n_best)]
             hyps = [sents[i] for i in range(self.n_best)]
             all_hyps.append(hyps)
+        
         return all_hyps
 
     def convert_ids_to_text(self, ids):
