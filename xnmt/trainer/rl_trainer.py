@@ -13,7 +13,7 @@ from xnmt.io import Constants
 from xnmt.trainer.rl_criterion import RLCriterion
 from xnmt.trainer.utils import sample_on_batch, beam_search_on_batch
 
-class RLTrainerGai(object):
+class RLTrainer(object):
     """
     Class that controls the training process.
 
