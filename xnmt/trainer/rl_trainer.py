@@ -30,6 +30,7 @@ class RLTrainer(object):
     def __init__(self, model, sample_type, reward_type, ce_criterion, optimizer, print_every, cuda=True):
         self.cuda = cuda
         self.model = model
+        self.reward_type = reward_type
         self.train_criterion = RLCriterion(reward_type, ce_criterion)
         self.valid_criterion = ce_criterion
         self.optimizer = optimizer
@@ -58,7 +59,6 @@ class RLTrainer(object):
         non_padding = target.ne(Constants.PAD)
         num_correct = pred.eq(target).masked_select(non_padding).sum().item()
         return Statistics(loss.item(), non_padding.sum().item(), num_correct)
-
 
     def train_on_batch(self, enc_data, enc_lengths, dec_data):
         # data initialization
@@ -111,6 +111,10 @@ class RLTrainer(object):
             
             mini_inputs = mini_samples[:, :-1]
             mini_target = mini_samples[:, 1:].contiguous()
+            """
+            # the input of baseline network must be hidden states of RNN 
+            # if we use the hidden state before linear-softmax layer, the result is bad.
+
             mini_outputs, mini_state = self.model.decoder(mini_inputs, ctx,
                    mini_state, ctx_lengths)
             mini_outputs = mini_outputs.view(
@@ -118,14 +122,29 @@ class RLTrainer(object):
             )
             mini_log_probs = self.model.generator(mini_outputs)
             baselines = self.model.baseline(mini_outputs.detach()).squeeze(-1)
+            """
+            state = mini_state
+            outputs = []
+            hiddens = []
+            for i in range(mini_inputs.size(1)):
+                y_t = mini_inputs[:, i:i+1]
+                output_t, state = self.model.decoder(y_t, ctx, state, ctx_lengths=ctx_lengths)
+                outputs.append(output_t)
+                hiddens.append(state.hidden[0].detach()[-1, :, :].squeeze(0))
+            mini_outputs = torch.stack(outputs, dim=1)
+            mini_hiddens = torch.stack(hiddens, dim=1)
+            mini_log_probs = self.model.generator(mini_outputs)
+            baselines = self.model.baseline(mini_hiddens.detach()).squeeze(-1)
 
             # post processing
-            #mini_loss, mini_reward = self.train_criterion(
-            #        mini_log_probs, target, mini_target, mini_lengths, baselines
-            #)
-            mini_loss, mini_reward = self.train_criterion(
+            if self.reward_type == 'ce':
+                mini_loss, mini_reward = self.train_criterion(
                     mini_log_probs, target, mini_target, mini_lengths
-            )
+                )
+            else:
+                mini_loss, mini_reward = self.train_criterion(
+                    mini_log_probs, target, mini_target, mini_lengths, baselines
+                )
             loss += mini_loss
             reward += mini_reward
             num_mini_batches += 1
